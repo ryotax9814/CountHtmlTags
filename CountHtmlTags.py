@@ -1,5 +1,6 @@
 import traceback
 from logging import getLogger, StreamHandler, DEBUG, FileHandler, Formatter
+import os
 from datetime import datetime
 #設定ファイル用のライブラリをインポート
 import configparser
@@ -19,7 +20,7 @@ handler.setLevel(DEBUG)
 handler.setFormatter(fmt)
 logger.addHandler(handler)
 #ファイル出力用のハンドラー設定
-file_handler = FileHandler("./CountHtmlTags.log", mode='a', encoding="UTF-8", delay=False)
+file_handler = FileHandler("CountHtmlTags.log", mode='a', encoding="UTF-8", delay=False)
 file_handler.setLevel(DEBUG)
 file_handler.setFormatter(fmt)
 logger.addHandler(file_handler)
@@ -31,11 +32,17 @@ tags_count_dic = {}
 sorted_tag_list = ()
 separator = ""
 nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
-output_filename = "./Output/" + nowtime + "出力結果.txt"
+output_filename = os.path.join("Output", nowtime + "出力結果.txt")
 
 #文字列を改行で区切ってリスト化する関数
 def str_list(v):
     return [x for x in v.split("\n") if len(x) != 0]
+
+#ソートできるようにタブの文字列を編集
+def edit_tab(tab):
+    rtn = tab.replace("<", "")
+    rtn = rtn.replace(">", "")
+    return rtn
 
 #調査対象のhtmlに含まれる全てのTagの種類を調査する関数
 def search_tags(htmlPath):
@@ -47,7 +54,7 @@ def search_tags(htmlPath):
             #htmlに含まれるTagの種類を調査
             for x in xml.iter():
                 if x.tag not in tags_count_dic.keys():
-                    tags_count_dic[x.tag] = 0
+                    tags_count_dic[edit_tab(x.tag)] = 0
 
     except Exception:
         logger.error("html解析エラー：" + str(htmlPath) + "\n" + traceback.format_exc())
@@ -63,7 +70,7 @@ def count_tags(htmlPath, target_file):
 
             #Tagごとの件数をカウント
             for y in xml.iter():
-                tags_count_dic[y.tag] = tags_count_dic[y.tag] + 1
+                tags_count_dic[edit_tab(y.tag)] = tags_count_dic[edit_tab(y.tag)] + 1
 
             #Tagと件数を出力
             for key in sorted_tag_list:
@@ -82,7 +89,7 @@ logger.info("htmlのTagカウント処理　開始")
 
 #設定ファイルの読み込み
 settings_conf = configparser.ConfigParser()
-settings_conf.read("./input/settings.conf", "UTF-8")
+settings_conf.read(os.path.join("input","settings.conf"), "UTF-8")
 
 #調査対象のフォルダパス、ファイル名を取得
 target_path = Path(settings_conf.get("target", "path"))
@@ -95,15 +102,34 @@ if sp_setteing == "1":
 else:
     separator = ","
 
+#調査対象のフォルダパスの設定がない場合、「.\input\html」を設定
+if target_path == "":
+    target_path = os.path.join("input", "html")
+
+#調査対象ファイルの設定がない場合、すべてのaspxファイルを検索する
+if len(target_files) == 0:
+    target_all_files = list(target_path.glob("**/*.aspx"))
+    #ファイル名を設定
+    for x in target_all_files:
+        if x.is_file():
+            target_files.append(x.name)
+
 for x in target_files:
     #調査対象ファイルのパスを取得（サブフォルダも調査）
     file_path = list(target_path.glob("**/" + x))
-    if len(file_path) > 1:
+
+    if len(file_path) == 0:
+        logger.error("ファイルが見つかりません。：" + x)
+    elif len(file_path) > 1:
         logger.error("同じ名前のファイルが複数あります。：" + x)
-    search_tags(file_path[0])
+    else:
+        search_tags(file_path[0])
 
 #Tagをソートして出力するために、ソートされたTagのリストを作成
 sorted_tag_list = sorted(tags_count_dic.keys())
+
+#出力先フォルダを作成（作成済みでもエラーとしない）
+os.makedirs("Output", exist_ok=True)
 
 with open(output_filename, "w", encoding="UTF-8") as result_file:
     #出力ファイルのヘッダーを書き込み
@@ -116,7 +142,10 @@ with open(output_filename, "w", encoding="UTF-8") as result_file:
     #出力ファイルに調査結果を書き込み
     for x in target_files:
         file_path = list(target_path.glob("**/" + x))
-        if len(file_path) > 1:
+        if len(file_path) == 0:
+            #ファイルが見つからない場合、エラーとして出力
+            result_file.writelines(x + separator + "エラー：ファイルが見つかりません。" + "\n")
+        elif len(file_path) > 1:
             #同じ名前のファイルが複数ある場合、エラーとして出力
             result_file.writelines(x + separator + "エラー：同じ名前のファイルが複数あります。" + "\n")
         else:
