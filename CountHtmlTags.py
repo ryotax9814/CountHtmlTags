@@ -39,10 +39,13 @@ def str_list(v):
     return [x for x in v.split("\n") if len(x) != 0]
 
 #ソートできるようにタブの文字列を編集
-def edit_tab(tab):
-    rtn = tab.replace("<", "")
-    rtn = rtn.replace(">", "")
-    return rtn
+def checkstr_tag(tag, target_file):
+    if isinstance(tag, str):
+        return True
+    else:
+        if target_file != "":
+            logger.error("tag解析エラー：" + target_file + " " + str(tag))
+        return False
 
 #調査対象のhtmlに含まれる全てのTagの種類を調査する関数
 def search_tags(htmlPath):
@@ -53,8 +56,8 @@ def search_tags(htmlPath):
             
             #htmlに含まれるTagの種類を調査
             for x in xml.iter():
-                if x.tag not in tags_count_dic.keys():
-                    tags_count_dic[edit_tab(x.tag)] = 0
+                if (x.tag not in tags_count_dic.keys() and checkstr_tag(x.tag, "")):
+                    tags_count_dic[x.tag] = 0
 
     except Exception:
         logger.error("html解析エラー：" + str(htmlPath) + "\n" + traceback.format_exc())
@@ -70,7 +73,8 @@ def count_tags(htmlPath, target_file):
 
             #Tagごとの件数をカウント
             for y in xml.iter():
-                tags_count_dic[edit_tab(y.tag)] = tags_count_dic[edit_tab(y.tag)] + 1
+                if checkstr_tag(y.tag, target_file):
+                    tags_count_dic[y.tag] = tags_count_dic[y.tag] + 1
 
             #Tagと件数を出力
             for key in sorted_tag_list:
