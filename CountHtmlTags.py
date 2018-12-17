@@ -1,6 +1,7 @@
 import traceback
 from logging import getLogger, StreamHandler, DEBUG, FileHandler, Formatter
 import os
+import codecs
 from datetime import datetime
 #設定ファイル用のライブラリをインポート
 import configparser
@@ -50,7 +51,8 @@ def checkstr_tag(tag, target_file):
 #調査対象のhtmlに含まれる全てのTagの種類を調査する関数
 def search_tags(htmlPath):
     try:
-        with open(htmlPath, "r", encoding="shift_jis") as html:
+        #不正な形式のデータを無視してファイルを読み込む
+        with codecs.open(htmlPath, "r", "shift_jis", "ignore") as html:
 
             xml = fromstring(html.read())
             
@@ -67,7 +69,8 @@ def count_tags(htmlPath, target_file):
     rtn = target_file
 
     try:
-        with open(htmlPath, "r", encoding="shift_jis") as html:
+        #不正な形式のデータを無視してファイルを読み込む
+        with codecs.open(htmlPath, "r", "shift_jis", "ignore") as html:
 
             xml = fromstring(html.read())
 
