@@ -5,6 +5,7 @@
     * Python 3.6.5
     * lxml 4.2.1
     * beautifulsoup4 4.6.3
+    * chardet 3.0.4
 * 使い方
     1. /Input/html に調査対象のhtmlファイルを格納します。
         * サブディレクトリまで検索するため、特にフォルダ構成の指定はありません。
