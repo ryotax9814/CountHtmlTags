@@ -9,6 +9,8 @@ import configparser
 from lxml.html.soupparser import fromstring
 #ファイル検索用のライブラリをインンポート
 from pathlib import Path
+#文字コード判定用のライブラリをインポート
+from chardet.universaldetector import UniversalDetector
 
 #ログ出力設定
 #ログのフォーマット設定
@@ -33,7 +35,7 @@ tags_count_dic = {}
 sorted_tag_list = ()
 separator = ""
 nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
-output_filename = os.path.join("Output", nowtime + "出力結果.txt")
+output_filename = os.path.join("Output", nowtime + "調査結果.csv")
 
 #文字列を改行で区切ってリスト化する関数
 def str_list(v):
@@ -45,14 +47,31 @@ def checkstr_tag(tag, target_file):
         return True
     else:
         if target_file != "":
-            logger.error("tag解析エラー：" + target_file + " " + str(tag))
+            logger.warning("tag解析エラー：" + target_file + " " + str(tag))
         return False
+
+#文字コード取得用関数
+def get_encodetype(htmlPath):
+    detector = UniversalDetector()
+    with open(htmlPath, mode='rb') as html:
+        for binary in html:
+            detector.feed(binary)
+            if detector.done:
+                #文字コードの判定ができれば、判定処理を抜ける。
+                break
+    detector.close()
+    
+    #エンコードの種類を返却
+    return detector.result['encoding']
+
 
 #調査対象のhtmlに含まれる全てのTagの種類を調査する関数
 def search_tags(htmlPath):
     try:
+        #ファイルの文字コードを取得
+        encodetype = get_encodetype(htmlPath)
         #不正な形式のデータを無視してファイルを読み込む
-        with codecs.open(htmlPath, "r", "shift_jis", "ignore") as html:
+        with codecs.open(htmlPath, "r", encodetype, "ignore") as html:
 
             xml = fromstring(html.read())
             
@@ -69,8 +88,13 @@ def count_tags(htmlPath, target_file):
     rtn = target_file
 
     try:
+        #ファイルの文字コードを取得
+        encodetype = get_encodetype(htmlPath)
+
+        logger.info("Tagカウント：" + target_file + " 文字コード：" + encodetype)
+
         #不正な形式のデータを無視してファイルを読み込む
-        with codecs.open(htmlPath, "r", "shift_jis", "ignore") as html:
+        with codecs.open(htmlPath, "r", encodetype, "ignore") as html:
 
             xml = fromstring(html.read())
 
@@ -121,6 +145,8 @@ if len(target_files) == 0:
         if x.is_file():
             target_files.append(x.name)
 
+logger.info("Tagの種類解析　開始")
+
 for x in target_files:
     #調査対象ファイルのパスを取得（サブフォルダも調査）
     file_path = list(target_path.glob("**/" + x))
@@ -132,13 +158,16 @@ for x in target_files:
     else:
         search_tags(file_path[0])
 
+logger.info("Tagの種類解析　終了")
+
 #Tagをソートして出力するために、ソートされたTagのリストを作成
 sorted_tag_list = sorted(tags_count_dic.keys())
 
 #出力先フォルダを作成（作成済みでもエラーとしない）
 os.makedirs("Output", exist_ok=True)
 
-with open(output_filename, "w", encoding="UTF-8") as result_file:
+#UTF-8(BOM付)で結果を出力する。
+with open(output_filename, "w", encoding="utf-8-sig") as result_file:
     #出力ファイルのヘッダーを書き込み
     line = "ファイル名"
     for tag in sorted_tag_list:
