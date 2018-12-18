@@ -33,6 +33,8 @@ logger.propagate = False
 #メンバ変数定義
 tags_count_dic = {}
 sorted_tag_list = ()
+target_files = ()
+target_path = Path()
 separator = ""
 nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
 output_filename = os.path.join("Output", nowtime + "調査結果.csv")
@@ -64,6 +66,39 @@ def get_encodetype(htmlPath):
     #エンコードの種類を返却
     return detector.result['encoding']
 
+#設定ファイルの読み込み
+def read_settings():
+    global target_files
+    global target_path
+    global separator
+    #設定ファイルの読み込み
+    settings_conf = configparser.ConfigParser()
+    settings_conf.read("settings.conf", "UTF-8")
+
+    #調査対象フォルダ
+    tp_setting = settings_conf.get("target", "path")
+    #設定がなければデフォルト値を設定
+    if tp_setting == "":
+        target_path = Path("input")
+    else:
+        target_path = Path(tp_setting)
+
+    #調査対象ファイル
+    target_files = str_list(settings_conf.get("target", "files"))
+    #調査対象ファイルの設定がない場合、すべてのaspxファイルを検索する
+    if len(target_files) == 0:
+        target_all_files = list(target_path.glob("**/*.aspx"))
+        #ファイル名を設定
+        for x in target_all_files:
+            if x.is_file():
+                target_files.append(x.name)
+
+    #出力結果の区切り文字設定
+    sp_setteing = settings_conf.get("target", "separator")
+    if sp_setteing == "1":
+        separator = "\t"
+    else:
+        separator = ","
 
 #調査対象のhtmlに含まれる全てのTagの種類を調査する関数
 def search_tags(htmlPath):
@@ -116,34 +151,10 @@ def count_tags(htmlPath, target_file):
         return target_file + separator + "ファイルオープンエラー"
 
 #メイン処理の開始
-logger.info("htmlのTagカウント処理　開始")
+logger.info("CountHtmlTags　開始")
 
 #設定ファイルの読み込み
-settings_conf = configparser.ConfigParser()
-settings_conf.read(os.path.join("input","settings.conf"), "UTF-8")
-
-#調査対象のフォルダパス、ファイル名を取得
-target_path = Path(settings_conf.get("target", "path"))
-target_files = str_list(settings_conf.get("target", "files"))
-
-#出力結果の区切り文字設定を取得
-sp_setteing = settings_conf.get("target", "separator")
-if sp_setteing == "1":
-    separator = "\t"
-else:
-    separator = ","
-
-#調査対象のフォルダパスの設定がない場合、「.\input\html」を設定
-if target_path == "":
-    target_path = os.path.join("input", "html")
-
-#調査対象ファイルの設定がない場合、すべてのaspxファイルを検索する
-if len(target_files) == 0:
-    target_all_files = list(target_path.glob("**/*.aspx"))
-    #ファイル名を設定
-    for x in target_all_files:
-        if x.is_file():
-            target_files.append(x.name)
+read_settings()
 
 logger.info("Tagの種類解析　開始")
 
@@ -187,4 +198,4 @@ with open(output_filename, "w", encoding="utf-8-sig") as result_file:
         else:
             result_file.writelines(count_tags(file_path[0], x) + "\n")
 
-logger.info("htmlのTagカウント処理　終了")
+logger.info("CountHtmlTags　終了")

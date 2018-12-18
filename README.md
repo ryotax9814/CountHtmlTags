@@ -7,9 +7,9 @@
     * beautifulsoup4 4.6.3
     * chardet 3.0.4
 * 使い方
-    1. /Input/html に調査対象のhtmlファイルを格納します。
+    1. /Input に調査対象のhtmlファイルを格納します。
         * サブディレクトリまで検索するため、特にフォルダ構成の指定はありません。
-    2. /Input/settings.conf を開き、設定内容を確認します。
+    2. /settings.conf を開き、設定内容を確認します。
     3. CountHtmlTags.py を実行します。
         * 出力結果は /Output に出力されます。
         * CountHtmlTags.log がログファイルです。
