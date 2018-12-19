@@ -33,6 +33,7 @@ logger.propagate = False
 #メンバ変数定義
 tags_count_dic = {}
 sorted_tag_list = ()
+ignore_tags = ()
 target_files = ()
 target_path = Path()
 separator = ""
@@ -42,15 +43,6 @@ output_filename = os.path.join("Output", nowtime + "調査結果.csv")
 #文字列を改行で区切ってリスト化する関数
 def str_list(v):
     return [x for x in v.split("\n") if len(x) != 0]
-
-#ソートできるようにタブの文字列を編集
-def checkstr_tag(tag, target_file):
-    if isinstance(tag, str):
-        return True
-    else:
-        if target_file != "":
-            logger.warning("tag解析エラー：" + target_file + " " + str(tag))
-        return False
 
 #文字コード取得用関数
 def get_encodetype(htmlPath):
@@ -70,6 +62,7 @@ def get_encodetype(htmlPath):
 def read_settings():
     global target_files
     global target_path
+    global ignore_tags
     global separator
     #設定ファイルの読み込み
     settings_conf = configparser.ConfigParser()
@@ -82,6 +75,9 @@ def read_settings():
         target_path = Path("input")
     else:
         target_path = Path(tp_setting)
+
+    #調査対象外タグ
+    ignore_tags = str_list(settings_conf.get("target", "ignore_tags"))
 
     #調査対象ファイル
     target_files = str_list(settings_conf.get("target", "files"))
@@ -100,6 +96,19 @@ def read_settings():
     else:
         separator = ","
 
+#調査対象タグの判定関数
+def is_target_tag(tag, target_file):
+    if isinstance(tag, str):
+        if tag not in ignore_tags:
+            return True
+        else:
+            return False
+    else:
+        #文字列に変換できない不正なタグの場合除外する。
+        if target_file != "":
+            logger.warning("tag解析エラー：" + target_file + " " + str(tag))
+        return False
+
 #調査対象のhtmlに含まれる全てのTagの種類を調査する関数
 def search_tags(htmlPath):
     try:
@@ -112,7 +121,7 @@ def search_tags(htmlPath):
             
             #htmlに含まれるTagの種類を調査
             for x in xml.iter():
-                if (x.tag not in tags_count_dic.keys() and checkstr_tag(x.tag, "")):
+                if x.tag not in tags_count_dic.keys() and is_target_tag(x.tag, ""):
                     tags_count_dic[x.tag] = 0
 
     except Exception:
@@ -135,7 +144,7 @@ def count_tags(htmlPath, target_file):
 
             #Tagごとの件数をカウント
             for y in xml.iter():
-                if checkstr_tag(y.tag, target_file):
+                if is_target_tag(y.tag, target_file):
                     tags_count_dic[y.tag] = tags_count_dic[y.tag] + 1
 
             #Tagと件数を出力
